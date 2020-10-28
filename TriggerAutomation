@@ -1,0 +1,68 @@
+trigger closedTrigger on Opportunity (after update) {
+    
+    //create a list of related accounts and account Ids
+    list<Id> acctIds = new list<Id>();
+    list<Account> accts = new list<Account>();
+    
+    //get the accounts and oplineitems associated with the opportunity 
+    for (opportunity o:trigger.new) {
+        acctIds.add(o.accountId);    
+    }
+    
+    //create a list of Opportunity Line Items 
+   list<Id> prodOpIds = new list<Id>();
+    
+    Map<Id, Set<String>> mapProducts = new Map<Id, Set<String>>();
+        for (opportunity op:trigger.new) {
+            prodOpIds.add(op.Id);
+            mapProducts.put(op.id, new Set<String>());
+        }
+    
+    for (OpportunityLineItem z: [SELECT Id, Product2.Name, OpportunityId FROM OpportunityLineItem WHERE OpportunityId IN: prodOpIds]) {
+        mapProducts.get(z.OpportunityId).add(z.Product2.Name);
+    }
+    
+    //now we can loop over the associated account(s) and update the information with which we're concerned
+    for (account a: [SELECT Id, Curriculum_Product__c, Past_Room_Scheduling_Product__c, Room_Scheduling_Product__c, 
+                                                       Past_Curriculum_Product__c, Past_Event_Scheduling_Product__c, 
+                                                       Event_Scheduler_Product__c,  Class_Schedule_Planning_Product__c, 
+                                                       Past_Class_Scheduling_Product__c, Past_Catalog_Product__c, 
+                                                       Catalog_Product__c, Account_Lifecycle_Status__c 
+                     FROM account WHERE Id IN: acctIds]) {
+        for (opportunity op:trigger.new) {
+        Set<String> setProducts = mapProducts.get(op.Id);
+            if (op.stageName=='Closed Won' && trigger.oldmap.get(op.Id).StageName != 'Closed Won') {
+                //set status to Customer
+                a.Account_Lifecycle_Status__c = 'Customer';
+                //class 
+                if(setProducts.contains('Class Scheduler') && a.Class_Schedule_Planning_Product__c != 'Coursedog')  {
+                    a.Past_Class_Scheduling_Product__c = a.Class_Schedule_Planning_Product__c;
+                    a.Class_Schedule_Planning_Product__c = 'Coursedog';                 
+                } 
+                //catalog
+                if(setProducts.contains('Catalog Management') && a.Catalog_Product__c != 'Coursedog')  {
+                    a.Past_Catalog_Product__c = a.Catalog_Product__c;
+                    a.Catalog_Product__c = 'Coursedog';
+                }
+                //events
+                if(setProducts.contains('Event Scheduler') && a.Event_Scheduler_Product__c != 'Coursedog')  {
+                    a.Past_Event_Scheduling_Product__c = a.Event_Scheduler_Product__c;
+                    a.Event_Scheduler_Product__c = 'Coursedog';
+                }  
+                //curriculum
+                if(setProducts.contains('Curriculum Management') && a.Curriculum_Product__c != 'Coursedog')  {
+                    a.Past_Curriculum_Product__c = a.Curriculum_Product__c;
+                    a.Curriculum_Product__c = 'Coursedog';
+                }
+            accts.add(a);  
+               
+            }
+            if (op.stageName=='Closed Lost' && trigger.oldmap.get(op.Id).StageName != 'Closed Lost') {
+                a.Account_Lifecycle_Status__c = 'Recycled';
+            accts.add(a);
+            }
+        }
+    
+    }
+    update accts; 
+}
