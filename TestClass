@@ -1,0 +1,86 @@
+@istest
+public class testClassForTrigger{
+    @istest
+    public static void triggerTest(){
+        account acc = new account();
+        acc.name='test'; //when you create an account you need a name 
+        acc.Class_Schedule_Planning_Product__c = 'Astra Scheduler';
+        acc.Curriculum_Product__c = 'Courseleaf CIM';
+        acc.Catalog_Product__c = 'Courseleaf CAT';
+        acc.Event_Scheduler_Product__c = 'EMS';
+        insert acc; //now we have an ID
+        
+        Pricebook2 stdpb = new Pricebook2(Id = Test.getStandardPricebookId());
+        update stdpb;
+
+        Product2 p = new Product2(Name = 'Catalog Management', CanUseRevenueSchedule = true, IsActive = true);
+        insert p;
+        
+        Product2 p2 = new Product2(Name = 'Curriculum Management', CanUseRevenueSchedule = true, IsActive = true);
+        insert p2;
+        
+        Product2 p3 = new Product2(Name = 'Class Scheduler', CanUseRevenueSchedule = true, IsActive = true);
+        insert p3;
+        
+        Product2 p4 = new Product2(Name = 'Event Scheduler', CanUseRevenueSchedule = true, IsActive = true);
+        insert p4;
+
+        PricebookEntry pbe = new PricebookEntry(Product2Id = p.Id, Pricebook2Id = stdpb.Id, IsActive = true, UnitPrice = 0);
+        insert pbe;
+        
+        PricebookEntry pbe2 = new PricebookEntry(Product2Id = p2.Id, Pricebook2Id = stdpb.Id, IsActive = true, UnitPrice = 0);
+        insert pbe2;
+        
+        PricebookEntry pbe3 = new PricebookEntry(Product2Id = p3.Id, Pricebook2Id = stdpb.Id, IsActive = true, UnitPrice = 0);
+        insert pbe3;
+        
+        PricebookEntry pbe4 = new PricebookEntry(Product2Id = p4.Id, Pricebook2Id = stdpb.Id, IsActive = true, UnitPrice = 0);
+        insert pbe4;
+        
+        opportunity opp = new opportunity();
+        opp.name='test opp';
+        opp.accountId = acc.Id; 
+        opp.closedate = date.today().adddays(5);
+        opp.Contract_Start_Date__c = date.today().adddays(9);
+        opp.stagename='Interest'; //when you create an op you need a stage, acocunt, name, and close date
+        
+        test.startTest();
+        insert opp;
+        
+        
+        OpportunityLineItem oli = new OpportunityLineItem(OpportunityId = opp.Id, PricebookEntryId = pbe.Id, Quantity = 1, UnitPrice = 50);
+        insert oli;
+        
+        OpportunityLineItem oli2 = new OpportunityLineItem(OpportunityId = opp.Id, PricebookEntryId = pbe2.Id, Quantity = 1, UnitPrice = 50);
+        insert oli2;
+        
+        OpportunityLineItem oli3 = new OpportunityLineItem(OpportunityId = opp.Id, PricebookEntryId = pbe3.Id, Quantity = 1, UnitPrice = 50);
+        insert oli3;
+        
+        OpportunityLineItem oli4 = new OpportunityLineItem(OpportunityId = opp.Id, PricebookEntryId = pbe4.Id, Quantity = 1, UnitPrice = 50);
+        insert oli4;
+        
+        opp.closedate = date.today();
+        opp.stageName = 'Closed Won';
+        update opp; 
+        account actTest = [SELECT Id, Account_Lifecycle_Status__c, Class_Schedule_Planning_Product__c, Past_Class_Scheduling_Product__c, 
+                                                                   Curriculum_Product__c, Past_Curriculum_Product__c,
+                                                                   Catalog_Product__c, Past_Catalog_Product__c,
+                                                                   Event_Scheduler_Product__c, Past_Event_Scheduling_Product__c
+                                                                   FROM Account WHERE ID = :acc.Id LIMIT 1];
+        update actTest; 
+        system.assertequals('Customer', actTest.Account_Lifecycle_Status__c,'Opportunity update did not set account status properly');
+        system.assertequals('Coursedog', actTest.Curriculum_Product__c, 'Opportunity did not set curriculum product properly');
+        system.assertequals('Courseleaf CIM', actTest.Past_Curriculum_Product__c, 'Opportunity did not set curriculum product properly');
+        system.assertequals('Coursedog', actTest.Class_Schedule_Planning_Product__c, 'Opportunity did not set scheduling product properly');
+        system.assertequals('Astra Scheduler', actTest.Past_Class_Scheduling_Product__c, 'Opportunity did not set scheduling product properly');
+        system.assertequals('Coursedog', actTest.Event_Scheduler_Product__c, 'Opportunity did not set event product properly');
+        system.assertequals('EMS', actTest.Past_Event_Scheduling_Product__c, 'Opportunity did not set event product properly');
+        system.assertequals('Coursedog', actTest.Catalog_Product__c, 'Opportunity did not set catlog product properly');
+        system.assertequals('Courseleaf CAT', actTest.Past_Catalog_Product__c, 'Opportunity did not set catalog product properly');
+
+        test.stopTest();
+        
+       
+    }
+}
